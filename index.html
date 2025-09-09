@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Match: Drag & Drop</title>
+    
+    <style>
+        :root {
+            /* Colores Originales */
+            --amarillo: #FFEB3B;
+            --azul: #2196F3;
+            --rojo: #F44336;
+            --blanco: #FFFFFF;
+            --negro: #212121;
+            --verde: #4CAF50;
+
+            /* === NUEVOS COLORES AÑADIDOS === */
+            --gris: #9E9E9E;
+            --naranja: #FF9800;
+            --purpura: #9C27B0;
+            --rosado: #FFB6C1;
+            --marron: #795548;
+            
+            /* Colores de la UI */
+            --fondo: #f4f7f6;
+            --borde-objetivo: #a9a9a9;
+            --borde-hover: #3498db;
+        }
+
+        @keyframes confeti-fall {
+            0% { transform: translateY(-100vh) rotateZ(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotateZ(360deg); opacity: 0; }
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--fondo);
+            color: #333;
+            text-align: center;
+            margin: 0;
+            padding: 1rem;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: clamp(2em, 6vw, 3em);
+            margin-bottom: 0.5rem;
+        }
+
+        .instructions {
+            font-size: clamp(1em, 3vw, 1.2em);
+            color: #555;
+            margin: 0 0 1.5rem 0;
+        }
+
+        #start-btn {
+            padding: 0.8em 1.5em;
+            font-size: clamp(1.2em, 4vw, 1.5em);
+            font-weight: bold;
+            color: white;
+            background-color: var(--verde);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            box-shadow: 0 4px #388E3C;
+        }
+
+        #start-screen {
+            display: block;
+        }
+
+        #game-screen {
+            display: none;
+            width: 100%;
+            margin-top: 2rem;
+        }
+        
+        #color-sources {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            min-height: 80px;
+        }
+
+        .color-source {
+            width: 70px;
+            height: 70px;
+            border-radius: 10px;
+            border: 3px solid #333;
+            cursor: grab;
+            transition: transform 0.2s, opacity 0.3s;
+        }
+        .color-source:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+        .color-source.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0);
+        }
+        
+        #drop-target-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+        }
+
+        #drop-target {
+            width: 200px;
+            height: 200px;
+            border: 5px dashed var(--borde-objetivo);
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+        
+        #drop-target.drag-over {
+            border-color: var(--borde-hover);
+            background-color: #ecf9ff;
+        }
+
+        #drop-target span {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            text-transform: capitalize;
+            pointer-events: none; /* Important for drop event */
+        }
+        
+        /* === ESTILOS PARA LOS NUEVOS COLORES === */
+        #drag-amarillo { background-color: var(--amarillo); }
+        #drag-azul { background-color: var(--azul); }
+        #drag-rojo { background-color: var(--rojo); }
+        #drag-blanco { background-color: var(--blanco); }
+        #drag-negro { background-color: var(--negro); }
+        #drag-verde { background-color: var(--verde); }
+        #drag-gris { background-color: var(--gris); }
+        #drag-naranja { background-color: var(--naranja); }
+        #drag-purpura { background-color: var(--purpura); }
+        #drag-rosado { background-color: var(--rosado); }
+        #drag-marron { background-color: var(--marron); }
+        
+        .message-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .message-overlay .symbol {
+            font-size: clamp(150px, 30vw, 250px);
+            font-weight: bold;
+            text-shadow: 0 0 20px black;
+            line-height: 1;
+        }
+        .message-overlay .message-text {
+            font-size: clamp(30px, 8vw, 60px);
+            color: white;
+            font-weight: bold;
+        }
+        
+        #fail-message .symbol { color: var(--rojo); }
+        #win-message .symbol { color: var(--verde); }
+        
+        #confetti-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .confeti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 0;
+            animation: confeti-fall 3s ease-in forwards;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="confetti-container"></div>
+
+    <div class="main-container">
+        <div id="start-screen">
+            <h1>Color Match: Drag & Drop</h1>
+            <p class="instructions">Drag the colored square to the box with the matching Spanish name!</p>
+            <button id="start-btn">Start Game</button>
+        </div>
+
+        <div id="game-screen">
+            <div id="color-sources">
+                <div class="color-source" id="drag-amarillo" data-color="amarillo" draggable="true"></div>
+                <div class="color-source" id="drag-azul" data-color="azul" draggable="true"></div>
+                <div class="color-source" id="drag-rojo" data-color="rojo" draggable="true"></div>
+                <div class="color-source" id="drag-blanco" data-color="blanco" draggable="true"></div>
+                <div class="color-source" id="drag-negro" data-color="negro" draggable="true"></div>
+                <div class="color-source" id="drag-verde" data-color="verde" draggable="true"></div>
+                <div class="color-source" id="drag-gris" data-color="gris" draggable="true"></div>
+                <div class="color-source" id="drag-naranja" data-color="naranja" draggable="true"></div>
+                <div class="color-source" id="drag-purpura" data-color="purpura" draggable="true"></div>
+                <div class="color-source" id="drag-rosado" data-color="rosado" draggable="true"></div>
+                <div class="color-source" id="drag-marron" data-color="marron" draggable="true"></div>
+            </div>
+            <div id="drop-target-area">
+                <div id="drop-target">
+                    <span id="target-color-name"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fail-message" class="message-overlay">
+        <div class="symbol">✗</div>
+        <div class="message-text">Try Again!</div>
+    </div>
+    <div id="win-message" class="message-overlay">
+        <div class="symbol">✓</div>
+        <div class="message-text">You Win!</div>
+    </div>
+
+    <script>
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const startBtn = document.getElementById('start-btn');
+        
+        const colorSources = document.querySelectorAll('.color-source');
+        const dropTarget = document.getElementById('drop-target');
+        const targetColorName = document.getElementById('target-color-name');
+        
+        const failMessage = document.getElementById('fail-message');
+        const winMessage = document.getElementById('win-message');
+        const confettiContainer = document.getElementById('confetti-container');
+
+        /* === ARREGLOS DE JS ACTUALIZADOS === */
+        const colores = [
+            'amarillo', 'azul', 'rojo', 'blanco', 'negro', 'verde', 
+            'gris', 'naranja', 'purpura', 'rosado', 'marron'
+        ];
+        const coloresHex = {
+            amarillo: '#FFEB3B', azul: '#2196F3', rojo: '#F44336',
+            blanco: '#FFFFFF', negro: '#212121', verde: '#4CAF50',
+            gris: '#9E9E9E', naranja: '#FF9800', purpura: '#9C27B0',
+            rosado: '#E91E63', marron: '#795548'
+        };
+
+        let coloresDisponibles = [];
+        let colorActual = '';
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            colorSources.forEach(c => c.classList.remove('hidden'));
+            coloresDisponibles = [...colores];
+            shuffleArray(coloresDisponibles);
+            gameScreen.style.display = 'block';
+            nextTurn();
+        }
+
+        function nextTurn() {
+            if (coloresDisponibles.length > 0) {
+                colorActual = coloresDisponibles.pop();
+                targetColorName.textContent = colorActual;
+            } else {
+                showWin();
+            }
+        }
+
+        function showFail() {
+            failMessage.style.display = 'flex';
+            setTimeout(() => {
+                failMessage.style.display = 'none';
+                returnToHome();
+            }, 2000);
+        }
+
+        function showWin() {
+            winMessage.style.display = 'flex';
+            launchConfetti();
+            setTimeout(() => {
+                winMessage.style.display = 'none';
+                returnToHome();
+            }, 3500);
+        }
+
+        function returnToHome() {
+            gameScreen.style.display = 'none';
+            startScreen.style.display = 'block';
+        }
+
+        // --- Eventos de Arrastrar y Soltar (Drag and Drop) ---
+
+        colorSources.forEach(colorSource => {
+            colorSource.addEventListener('dragstart', (event) => {
+                event.dataTransfer.setData('text/plain', event.target.dataset.color);
+                setTimeout(() => event.target.style.opacity = '0.5', 0);
+            });
+            colorSource.addEventListener('dragend', (event) => {
+                setTimeout(() => event.target.style.opacity = '1', 0);
+            });
+        });
+
+        dropTarget.addEventListener('dragover', (event) => {
+            event.preventDefault(); // Necesario para permitir el drop
+            dropTarget.classList.add('drag-over');
+        });
+
+        dropTarget.addEventListener('dragleave', () => {
+            dropTarget.classList.remove('drag-over');
+        });
+
+        dropTarget.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropTarget.classList.remove('drag-over');
+            const draggedColor = event.dataTransfer.getData('text/plain');
+
+            if (draggedColor === colorActual) {
+                // --- ACIERTO ---
+                document.getElementById(`drag-${draggedColor}`).classList.add('hidden');
+                nextTurn();
+            } else {
+                // --- FALLO ---
+                showFail();
+            }
+        });
+
+        // --- Efectos Visuales ---
+        function launchConfetti() {
+            for (let i = 0; i < 150; i++) {
+                const confeti = document.createElement('div');
+                confeti.classList.add('confeti');
+                const colorKey = colores[Math.floor(Math.random() * colores.length)];
+                confeti.style.backgroundColor = coloresHex[colorKey];
+                confeti.style.left = Math.random() * 100 + 'vw';
+                confeti.style.animationDelay = Math.random() * 2 + 's';
+                confeti.style.transform = `scale(${Math.random() * 0.8 + 0.5})`;
+                confeti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                confettiContainer.appendChild(confeti);
+                setTimeout(() => confeti.remove(), 4000);
+            }
+        }
+        
+        startBtn.addEventListener('click', startGame);
+
+    </script>
+</body>
+</html>
